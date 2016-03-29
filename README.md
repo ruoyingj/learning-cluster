@@ -115,6 +115,7 @@ Notice: during the entire process (even after you finish this part), you’d bet
 3. Configure `eth0` in the file `/etc/network/interfaces` with `static ip = 10.0.0.2`, `netmask 255.255.255.0`, `gateway 10.0.0.2`, and `broadcast 10.0.0.255`. You can find an example [here](https://wiki.debian.org/NetworkConfiguration), in the **Configuring the interface manually** section. Since this file is read-only, you may want to edit it with sudo.
 4. There are two ways to setup connection between `losamalos` and the other threes machine `alpha`, `beta` and `gamma`. （static IP is easier and safer）
 5. To prevent warning for Ambari part, you can set the hosts as 'ip_address domain_name alias', each node should maintain the same copies of hosts configuration file.
+6. If you want to set the hosts as 'ip_address domain_name alias'. In the file /etc/hosts, you should list all the hosts below the localhost on each machine.  It should be  10.0.0.2 losalamos.pc.cs.cmu.edu losalamos, 10.0.0.3 alpha.pc.cs.cmu.edu alpha 10.0.0.4 beta.pc.cs.cmu.edu beta and 10.0.0.5 gamma.pc.cs.cmu.edu gamma.(Each host one line.).
 
 * Using DHCP
 
@@ -144,12 +145,13 @@ You may want to confiture the iptables to block some incoming traffic and allow 
 
 ### Tips
 
-1. Read the instructions **carefully** and find out **which is incoming network port and which is outgoing**. (See the picture above).
+1. Read the instructions **carefully** and find out **which is incoming network port and which is outgoing**. (See the picture above).Do not use the command line exactly the same as in [this](http://www.revsys.com/writings/quicktips/nat.html). You should modify the eth0 or eth1 based on the picture above. First you should postrouting eth1, then you should forward eth1 to eth0 and last you should forward eth0 to eht1.
 2. When executing `echo 1 > /proc/sys/net/ipv4/ip_forward` as instructed in the HOWTO wiki page, if get a "permission denied" alert，please use this command: 
 `sudo bash -c 'echo 1 > /proc/sys/net/ipv4/ip_forward'`.
 3. Don't overthink it. Just type in the commands, they are not script.
 4. If you cannot ping external resources on the inner machines, you can: 1) check if your server is able to ping outside or not; 2) check if the `dns-nameservers` is set in all four configuration files; or 3) check carefully the spelling of your configuration files. 4) check `/etc/sysctl.conf` is well modified.
 5. When setting the iptable protection, make sure you don't block the SSH.
+6. When you are setting the iptable protection, if you want to set the REJECT all -- any any anywhere anywhere reject-with icmp-host-prohibited, make sure that you should first accpet the port 22 and port 8080, or you may lose the ssh.
 
 ## <a name="install-hadoop">Install Hadoop using Ambari</a>
 
@@ -164,10 +166,12 @@ For setup, configure and deploy parts, you may also refer to [This](http://blog.
 1. Do 1.4.1 Set Up Password-less SSH use links behind in the tips
 2. no need do 1.4.2: there is default account
 3. Do 1.4.3 NTP on all four hosts, there is no ubuntu version command in the official installation document, refer to [here](http://blogging.dragon.org.uk/setting-up-ntp-on-ubuntu-14-04/) and [here](http://blogging.dragon.org.uk/setting-up-ntp-on-ubuntu-14-04/)
-4. no need do 1.4.4: Offitial installation document gives hosts name and network setting on redhat and centOS. for ubuntu, hostname and network are set in etc/network/interfaces already in the "Establish Subnet" process。
-5. no need for 1.4.5: detailed iptable setting guide has been given above.
-6. Do 1.4.6 Ubuntu 14 has no selinux pre-installed. Follow the instruction to set umask.
-7. You can set ulimit at /etc/security/limits.conf, make sure you change the ulimit of the ACCOUNT YOU USE(e.g root) to install Ambari. But you may need to reboot the system to make it funcational, so it may be better to set this right after you install the OS and then reboot the system.
+4.If you meet warings when confirms hosts which said ntp services error, you may check whether you have already started up the ntp on each machine, if not, use this command line sudo service ntp start.
+5. no need do 1.4.4: Offitial installation document gives hosts name and network setting on redhat and centOS. for ubuntu, hostname and network are set in etc/network/interfaces already in the "Establish Subnet" process。
+6. no need for 1.4.5: detailed iptable setting guide has been given above.
+7. Do 1.4.6 Ubuntu 14 has no selinux pre-installed. Follow the instruction to set umask.
+8. You can set ulimit at /etc/security/limits.conf, make sure you change the ulimit of the ACCOUNT YOU USE(e.g root) to install Ambari. **Do not** reboot the system when you finish the ulimit installation. If do, you may need to reinstall the machine.
+
 
 * [This](http://posidev.com/blog/2009/06/04/set-ulimit-parameters-on-ubuntu/) will help you when setting `ulimit`. Notice that in this instruction, `user` means `[user]`. Thus you need to replace it with your system username.
 * Set up the SSH carefully. After this part being done, you can remotely control those four machines with your own laptop. If you did not install OpenSSH during installation, you can install it using `apt-get install openssh-server`. You can only directly SSH into `losalamos` from the outside, but you can SSH into other machines within `losalamos` (like Inception!).
@@ -181,6 +185,8 @@ For setup, configure and deploy parts, you may also refer to [This](http://blog.
 	- If you change the ssh configuration, you may need to restart ssh by `service ssh restart`.
 	- Make sure the password-less SSH works in both directions among four machines: scp the private and public key to the .ssh folder of four machines and modify authorized_key file.
 	- If something goes wrong with the password-less SSH, you may get timeout error in building cluster. Then try Installing Ambari Agents Manually, look at [this](https://ambari.apache.org/1.2.0/installing-hadoop-using-ambari/content/ambari-chap6-1.html). For Ubuntu, use apt-get instead of yum.
+	- You may generate the public key or private key from the user account which is not root, check it carefully or you maynot automatically install the hadoop system. The public key and private key is under the file /root/.ssh. .ssh file is invisible file there.
+	- When input the private key in the Ambari installation, don't forget to include the first line and last line.
 	
 * If you come accross failure in registering four machines, check:
 	- If you set the ssh correctly, and can login in other machine from root@losalamos without password.
@@ -229,6 +235,8 @@ If everything is green on the dashboard of Ambari, you can follow [this](http://
 - The output folder of your map reduce program should not exist when executing the jar program.
 - If there's any "permission" problem, try using su (root), or `sudo` in each command;
 - Remember that in MapReduce 2.0, you should use the command `yarn` but not `hadoop`.
+- If you have trouble running your wordcount program, you may need to install the Java Jre before. You can choose the default one. 
+- If you have already run the wordcount program successfully and want to run it again, make sure to remove two things. The first one is the output folder. Using hdfs dfs -rm -r StartsWithCount/output. And anther one is the previous version's result. Or you may meet problems say 'File exits'.
 
 # <a name="pitfall">Pitfalls you should pay attention to</a>
 - Make sure the physical connection is correct;
